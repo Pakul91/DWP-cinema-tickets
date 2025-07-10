@@ -51,4 +51,10 @@ describe("TicketTypeRequest", () => {
     expect(() => new TicketTypeRequest("ADULT", 0)).not.toThrow();
     expect(new TicketTypeRequest("ADULT", 0).getNoOfTickets()).toBe(0);
   });
+
+  test("should throw error if negative number of tickets is provided", () => {
+    expect(() => new TicketTypeRequest("ADULT", -1)).toThrow(
+      "noOfTickets cannot be negative"
+    );
+  });
 });
