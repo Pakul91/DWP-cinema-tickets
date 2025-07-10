@@ -2,35 +2,27 @@ import { describe, test } from "vitest";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 
 describe("TicketTypeRequest", () => {
-  test("should throw type error if wrong type of ticket is requested", () => {
-    expect(() => new TicketTypeRequest("wrongType", 1)).toThrow(TypeError);
-    expect(() => new TicketTypeRequest(null, 1)).toThrow(TypeError);
-    expect(() => new TicketTypeRequest({}, 1)).toThrow(TypeError);
-    expect(() => new TicketTypeRequest([], 1)).toThrow(TypeError);
-    expect(() => new TicketTypeRequest(["ADULT"], 1)).toThrow(TypeError);
-    expect(() => new TicketTypeRequest(1)).toThrow(TypeError);
+  test.each([
+    ["wrong string type", "wrongType"],
+    ["null", null],
+    ["object", {}],
+    ["empty array", []],
+    ["array with valid type", ["ADULT"]],
+    ["number", 1]
+  ])("should throw type error if wrong type of ticket is requested: %s", (_, invalidType) => {
+    expect(() => new TicketTypeRequest(invalidType, 1)).toThrow(TypeError);
   });
 
-  test("should throw type error if invalid number of tickets is provided", () => {
-    expect(() => new TicketTypeRequest("ADULT", "1")).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", null)).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", undefined)).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", {})).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", [])).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", NaN)).toThrow(
-      "noOfTickets must be an integer"
-    );
-    expect(() => new TicketTypeRequest("ADULT", 1.5)).toThrow(
+  test.each([
+    ["string number", "1"],
+    ["null", null],
+    ["undefined", undefined],
+    ["object", {}],
+    ["array", []],
+    ["NaN", NaN],
+    ["float", 1.5]
+  ])("should throw type error if invalid number of tickets is provided: %s", (_, invalidNumber) => {
+    expect(() => new TicketTypeRequest("ADULT", invalidNumber)).toThrow(
       "noOfTickets must be an integer"
     );
   });
