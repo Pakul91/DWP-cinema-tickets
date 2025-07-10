@@ -5,12 +5,16 @@ import TicketService from "../src/pairtest/TicketService";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 
 describe("TicketService", () => {
+  let ticketService; // Defined at top level
+
+  beforeEach(() => {
+    ticketService = new TicketService(); // Available to all nested tests
+  });
+
   describe("Account ID validation", () => {
-    let ticketService;
     let validTicketRequest;
 
     beforeEach(() => {
-      ticketService = new TicketService();
       validTicketRequest = new TicketTypeRequest("ADULT", 1);
     });
 
@@ -38,6 +42,27 @@ describe("TicketService", () => {
       expect(() =>
         ticketService.purchaseTickets(1, validTicketRequest)
       ).not.toThrow();
+    });
+  });
+
+  describe("Ticket requests validation", () => {
+    test("should throw error if no ticket requests are provided", () => {
+      expect(() => ticketService.purchaseTickets(1)).toThrow(
+        InvalidPurchaseException
+      );
+    });
+
+    test("should throw error wrong ticket request is provided", () => {
+      const validRequest = new TicketTypeRequest("ADULT", 1);
+      expect(() => ticketService.purchaseTickets(1, [])).toThrow(
+        InvalidPurchaseException
+      );
+      expect(() => ticketService.purchaseTickets(1, [validRequest])).toThrow(
+        InvalidPurchaseException
+      );
+      expect(() =>
+        ticketService.purchaseTickets(1, validRequest, null)
+      ).toThrow(InvalidPurchaseException);
     });
   });
 });
