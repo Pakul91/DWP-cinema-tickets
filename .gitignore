@@ -1,65 +1,65 @@
-# # Logs
-# logs
-# *.log
-# npm-debug.log*
-# yarn-debug.log*
-# yarn-error.log*
-# lerna-debug.log*
-# .pnpm-debug.log*
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# # Diagnostic reports (https://nodejs.org/api/report.html)
-# report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# # Runtime data
-# pids
-# *.pid
-# *.seed
-# *.pid.lock
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# # Dependency directories
-# node_modules/
-# jspm_packages/
+# Dependency directories
+node_modules/
+jspm_packages/
 
-# # TypeScript cache
-# *.tsbuildinfo
+# TypeScript cache
+*.tsbuildinfo
 
-# # Optional npm cache directory
-# .npm
+# Optional npm cache directory
+.npm
 
-# # Optional eslint cache
-# .eslintcache
+# Optional eslint cache
+.eslintcache
 
-# # Optional stylelint cache
-# .stylelintcache
+# Optional stylelint cache
+.stylelintcache
 
-# # Yarn Integrity file
-# .yarn-integrity
+# Yarn Integrity file
+.yarn-integrity
 
-# # dotenv environment variable files
-# .env
-# .env.development.local
-# .env.test.local
-# .env.production.local
-# .env.local
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
 
-# # Coverage directory used by tools like istanbul
-# coverage/
-# .nyc_output
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
 
-# # IDE - VSCode
-# .vscode/*
-# !.vscode/settings.json
-# !.vscode/tasks.json
-# !.vscode/launch.json
-# !.vscode/extensions.json
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# # macOS
-# .DS_Store
+# macOS
+.DS_Store
 
-# # Build output
-# dist/
-# build/
+# Build output
+dist/
+build/
 
-# # Temporary files
-# .tmp/
-# temp/
+# Temporary files
+.tmp/
+temp/
