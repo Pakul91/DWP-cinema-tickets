@@ -1,5 +1,5 @@
+import { describe, test } from "vitest";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
-import { describe, test, expect } from "vitest";
 
 describe("TicketTypeRequest", () => {
   test("should throw type error if wrong type of ticket is requested", () => {
