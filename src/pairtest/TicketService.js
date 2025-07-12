@@ -1,5 +1,6 @@
 import TicketTypeRequest from "./lib/TicketTypeRequest.js";
 import InvalidPurchaseException from "./lib/InvalidPurchaseException.js";
+import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService.js";
 
 export default class TicketService {
   #ticketPrices = {
@@ -10,16 +11,26 @@ export default class TicketService {
 
   #ticketsLimit = 25;
 
+  #accountId;
+  #ticketTypeRequests;
+  #totals;
+
   purchaseTickets(accountId, ...ticketTypeRequests) {
     try {
+      this.#accountId = accountId;
+      this.#ticketTypeRequests = ticketTypeRequests;
+      this.#totals = {};
+
       // Validate account ID
-      this.#validateAccountId(accountId);
+      this.#validateAccountId();
       // Validate ticket request
-      this.#validateTicketRequests(ticketTypeRequests);
+      this.#validateTicketRequests();
       // Calculate totals
-      const totals = this.#calculateTotals(ticketTypeRequests);
+      this.#calculateTotals();
       // Validate order
-      this.#validateOrder(totals);
+      this.#validateOrder();
+      // Pay for tickets
+      this.#payForTickets();
     } catch (error) {
       throw new InvalidPurchaseException(
         `Failed to purchase tickets: ${error.message}`
@@ -27,18 +38,18 @@ export default class TicketService {
     }
   }
 
-  #validateAccountId(accountId) {
-    if (!Number.isInteger(accountId) || accountId <= 0) {
+  #validateAccountId() {
+    if (!Number.isInteger(this.#accountId) || this.#accountId <= 0) {
       throw new Error("Invalid account id");
     }
   }
 
-  #validateTicketRequests(ticketTypeRequests) {
-    if (!ticketTypeRequests?.length) {
+  #validateTicketRequests() {
+    if (!this.#ticketTypeRequests?.length) {
       throw new Error("At lest ticket request is required");
     }
 
-    for (const request of ticketTypeRequests) {
+    for (const request of this.#ticketTypeRequests) {
       if (!(request instanceof TicketTypeRequest)) {
         throw new Error(
           "All ticket requests must be TicketTypeRequest instances"
@@ -47,8 +58,8 @@ export default class TicketService {
     }
   }
 
-  #calculateTotals(ticketTypeRequests) {
-    return ticketTypeRequests.reduce((totals, request) => {
+  #calculateTotals() {
+    this.#totals = this.#ticketTypeRequests.reduce((totals, request) => {
       const ticketType = request.getTicketType();
       const noOfTickets = request.getNoOfTickets();
 
@@ -67,7 +78,9 @@ export default class TicketService {
     }, {});
   }
 
-  #validateOrder(totals) {
+  #validateOrder() {
+    const totals = this.#totals;
+
     if (!totals["ADULT"]?.quantity) {
       throw new Error("At least 1 adult ticket is required");
     }
@@ -79,5 +92,17 @@ export default class TicketService {
     if (ticketsTotal > this.#ticketsLimit) {
       throw new Error("Maximum tickets number per order exceeded ");
     }
+  }
+
+  #payForTickets() {
+    const service = new TicketPaymentService();
+
+    const totalPayment = Object.values(this.#totals).reduce(
+      (total, ticketType) => {
+        return total + ticketType.totalPrice;
+      },
+      0
+    );
+    service.makePayment(this.#accountId, totalPayment);
   }
 }

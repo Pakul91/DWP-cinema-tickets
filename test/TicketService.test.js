@@ -1,15 +1,15 @@
-import { describe, test, beforeEach } from "vitest";
+import { describe, test, beforeEach, afterEach, vi } from "vitest";
 
 import InvalidPurchaseException from "../src/pairtest/lib/InvalidPurchaseException";
 import TicketService from "../src/pairtest/TicketService";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
+import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService";
 
 const createTicketTypeRequest = (ticketTypes) => {
   if (!Array.isArray(ticketTypes)) {
     throw new Error("You need to pass an array");
   }
 
-  console.log("ticket types", ticketTypes);
   return ticketTypes.map(
     (ticketType) => new TicketTypeRequest(ticketType.type, ticketType.quantity)
   );
@@ -19,9 +19,17 @@ const validId = 1;
 
 describe("TicketService", () => {
   let ticketService;
+  let paymentServiceSpy;
 
   beforeEach(() => {
     ticketService = new TicketService();
+    paymentServiceSpy = vi
+      .spyOn(TicketPaymentService.prototype, "makePayment")
+      .mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe("Account ID validation", () => {
@@ -44,7 +52,7 @@ describe("TicketService", () => {
       ["float", 1.5],
     ])(
       "should throw InvalidPurchaseException for invalid account ID: %s",
-      (id) => {
+      (_, id) => {
         expect(() =>
           ticketService.purchaseTickets(id, validTicketRequest)
         ).toThrow(InvalidPurchaseException);
@@ -113,6 +121,27 @@ describe("TicketService", () => {
       expect(() =>
         ticketService.purchaseTickets(validId, ...orderList)
       ).not.toThrow(InvalidPurchaseException);
+    });
+  });
+
+  describe("Ticket payment", () => {
+    test("should not be called when wrong id is passed", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+      ]);
+
+      expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
+        InvalidPurchaseException
+      );
+
+      expect(paymentServiceSpy).not.toHaveBeenCalled();
+    });
+
+    test("should not be called when wrong ticketTypeRequestIs passed", () => {
+      expect(() => ticketService.purchaseTickets(validId, null)).toThrow(
+        InvalidPurchaseException
+      );
+      expect(paymentServiceSpy).not.toHaveBeenCalled();
     });
   });
 });
