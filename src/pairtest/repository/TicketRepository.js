@@ -8,11 +8,11 @@ export default class TicketRepository {
    * Returns the current ticket prices for all ticket types
    * @returns {Object} An object mapping ticket types to their prices
    */
-  getTicketPrices() {
+  getTicketsData() {
     return {
-      INFANT: 0,
-      CHILD: 15,
-      ADULT: 25,
+      INFANT: { price: 0, seats: 0 },
+      CHILD: { price: 15, seats: 1 },
+      ADULT: { price: 25, seats: 1 },
     };
   }
 }

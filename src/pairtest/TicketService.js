@@ -6,7 +6,7 @@ import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentServ
 export default class TicketService {
   #ticketsLimit = 25;
 
-  #ticketPrices;
+  #ticketsData;
   #accountId;
   #ticketTypeRequests;
   #totals;
@@ -22,7 +22,7 @@ export default class TicketService {
       // Validate ticket request
       this.#validateTicketRequests();
       // Get prices from repository
-      this.#getTicketPrices();
+      this.#getTicketsData();
       // Calculate totals
       this.#calculateTotals();
       // Validate order
@@ -56,9 +56,9 @@ export default class TicketService {
     }
   }
 
-  #getTicketPrices() {
+  #getTicketsData() {
     const repository = new TicketRepository();
-    this.#ticketPrices = repository.getTicketPrices();
+    this.#ticketsData = repository.getTicketsData();
   }
 
   #calculateTotals() {
@@ -70,12 +70,15 @@ export default class TicketService {
         totals[ticketType] = {
           quantity: 0,
           totalPrice: 0,
+          totalSeats: 0,
         };
       }
 
       totals[ticketType].quantity += noOfTickets;
       totals[ticketType].totalPrice +=
-        noOfTickets * this.#ticketPrices[ticketType];
+        noOfTickets * this.#ticketsData[ticketType].price;
+      totals[ticketType].totalSeats +=
+        noOfTickets * this.#ticketsData[ticketType].seats;
 
       return totals;
     }, {});

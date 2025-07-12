@@ -7,9 +7,9 @@ import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService";
 
 const ticketPrices = {
-  INFANT: 0,
-  CHILD: 15,
-  ADULT: 25,
+  INFANT: { price: 0, seats: 0 },
+  CHILD: { price: 15, seats: 1 },
+  ADULT: { price: 25, seats: 1 },
 };
 const validId = 1;
 
@@ -31,7 +31,7 @@ describe("TicketService", () => {
   beforeEach(() => {
     ticketService = new TicketService();
     ticketRepositorySpy = vi
-      .spyOn(TicketRepository.prototype, "getTicketPrices")
+      .spyOn(TicketRepository.prototype, "getTicketsData")
       .mockImplementation(() => {
         return ticketPrices;
       });
