@@ -6,6 +6,13 @@ import TicketRepository from "../src/pairtest/repository/TicketRepository";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService";
 
+const ticketPrices = {
+  INFANT: 0,
+  CHILD: 15,
+  ADULT: 25,
+};
+const validId = 1;
+
 const createTicketTypeRequest = (ticketTypes) => {
   if (!Array.isArray(ticketTypes)) {
     throw new Error("You need to pass an array");
@@ -15,8 +22,6 @@ const createTicketTypeRequest = (ticketTypes) => {
     (ticketType) => new TicketTypeRequest(ticketType.type, ticketType.quantity)
   );
 };
-
-const validId = 1;
 
 describe("TicketService", () => {
   let ticketService;
@@ -28,11 +33,7 @@ describe("TicketService", () => {
     ticketRepositorySpy = vi
       .spyOn(TicketRepository.prototype, "getTicketPrices")
       .mockImplementation(() => {
-        return {
-          INFANT: 0,
-          CHILD: 15,
-          ADULT: 25,
-        };
+        return ticketPrices;
       });
     paymentServiceSpy = vi
       .spyOn(TicketPaymentService.prototype, "makePayment")
@@ -165,8 +166,8 @@ describe("TicketService", () => {
     });
   });
 
-  describe("Ticket payment", () => {
-    test("should not be called when wrong id is passed", () => {
+  describe("Payment service interactions", () => {
+    test("should not call repository when account ID is invalid", () => {
       const orderList = createTicketTypeRequest([
         { type: "ADULT", quantity: 2 },
       ]);
@@ -178,11 +179,58 @@ describe("TicketService", () => {
       expect(paymentServiceSpy).not.toHaveBeenCalled();
     });
 
-    test("should not be called when wrong ticketTypeRequestIs passed", () => {
+    test("should not call repository when ticket request is invalid or missing", () => {
       expect(() => ticketService.purchaseTickets(validId, null)).toThrow(
         InvalidPurchaseException
       );
       expect(paymentServiceSpy).not.toHaveBeenCalled();
+    });
+
+    test("should calculate correct payment for single adult ticket", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 1 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+      expect(paymentServiceSpy).toHaveBeenCalledOnce();
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 25);
+    });
+
+    test("should calculate correct payment for multiple adult tickets", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 3 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 75); // 3 * 25 = 75
+    });
+
+    test("should calculate correct payment for mixed ticket types", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+        { type: "CHILD", quantity: 3 },
+        { type: "INFANT", quantity: 1 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+
+      // 2 adults @ £25 = £50
+      // 3 children @ £15 = £45
+      // 1 infant @ £0 = £0
+      // Total: £95
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 95);
+    });
+
+    test("should handle zero quantities correctly", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 1 },
+        { type: "CHILD", quantity: 0 },
+        { type: "INFANT", quantity: 0 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 25); // Only the adult ticket is charged
     });
   });
 });
