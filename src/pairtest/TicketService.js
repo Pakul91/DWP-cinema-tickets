@@ -1,16 +1,12 @@
 import TicketTypeRequest from "./lib/TicketTypeRequest.js";
+import TicketRepository from "./repository/TicketRepository.js";
 import InvalidPurchaseException from "./lib/InvalidPurchaseException.js";
 import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService.js";
 
 export default class TicketService {
-  #ticketPrices = {
-    INFANT: 0,
-    CHILD: 15,
-    ADULT: 25,
-  };
-
   #ticketsLimit = 25;
 
+  #ticketPrices;
   #accountId;
   #ticketTypeRequests;
   #totals;
@@ -25,6 +21,8 @@ export default class TicketService {
       this.#validateAccountId();
       // Validate ticket request
       this.#validateTicketRequests();
+      // Get prices from repository
+      this.#getTicketPrices();
       // Calculate totals
       this.#calculateTotals();
       // Validate order
@@ -33,7 +31,7 @@ export default class TicketService {
       this.#payForTickets();
     } catch (error) {
       throw new InvalidPurchaseException(
-        `Failed to purchase tickets: ${error.message}`
+        `Failed to purchase tickets: ${error.message || error}`
       );
     }
   }
@@ -56,6 +54,11 @@ export default class TicketService {
         );
       }
     }
+  }
+
+  #getTicketPrices() {
+    const repository = new TicketRepository();
+    this.#ticketPrices = repository.getTicketPrices();
   }
 
   #calculateTotals() {

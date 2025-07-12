@@ -2,6 +2,7 @@ import { describe, test, beforeEach, afterEach, vi } from "vitest";
 
 import InvalidPurchaseException from "../src/pairtest/lib/InvalidPurchaseException";
 import TicketService from "../src/pairtest/TicketService";
+import TicketRepository from "../src/pairtest/repository/TicketRepository";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService";
 
@@ -19,10 +20,20 @@ const validId = 1;
 
 describe("TicketService", () => {
   let ticketService;
+  let ticketRepositorySpy;
   let paymentServiceSpy;
 
   beforeEach(() => {
     ticketService = new TicketService();
+    ticketRepositorySpy = vi
+      .spyOn(TicketRepository.prototype, "getTicketPrices")
+      .mockImplementation(() => {
+        return {
+          INFANT: 0,
+          CHILD: 15,
+          ADULT: 25,
+        };
+      });
     paymentServiceSpy = vi
       .spyOn(TicketPaymentService.prototype, "makePayment")
       .mockImplementation(() => {});
@@ -84,6 +95,36 @@ describe("TicketService", () => {
       expect(() =>
         ticketService.purchaseTickets(1, validRequest, null)
       ).toThrow(InvalidPurchaseException);
+    });
+  });
+
+  describe("Ticket repository interactions", () => {
+    test("should not call repository when account ID is invalid", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+      ]);
+
+      expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
+        InvalidPurchaseException
+      );
+
+      expect(ticketRepositorySpy).not.toHaveBeenCalled();
+    });
+
+    test("should not call repository when ticket request is invalid or missing", () => {
+      expect(() => ticketService.purchaseTickets(validId, null)).toThrow(
+        InvalidPurchaseException
+      );
+      expect(ticketRepositorySpy).not.toHaveBeenCalled();
+    });
+
+    test("should call repository with valid request", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+      expect(ticketRepositorySpy).toHaveBeenCalledOnce();
     });
   });
 
