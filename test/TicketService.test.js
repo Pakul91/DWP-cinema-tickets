@@ -5,6 +5,7 @@ import TicketService from "../src/pairtest/TicketService";
 import TicketRepository from "../src/pairtest/repository/TicketRepository";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest";
 import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService";
+import SeatReservationService from "../src/thirdparty/seatbooking/SeatReservationService";
 
 const ticketPrices = {
   INFANT: { price: 0, seats: 0 },
@@ -27,16 +28,23 @@ describe("TicketService", () => {
   let ticketService;
   let ticketRepositorySpy;
   let paymentServiceSpy;
+  let reservationServiceSpy;
 
   beforeEach(() => {
     ticketService = new TicketService();
+
     ticketRepositorySpy = vi
       .spyOn(TicketRepository.prototype, "getTicketsData")
       .mockImplementation(() => {
         return ticketPrices;
       });
+
     paymentServiceSpy = vi
       .spyOn(TicketPaymentService.prototype, "makePayment")
+      .mockImplementation(() => {});
+
+    reservationServiceSpy = vi
+      .spyOn(SeatReservationService.prototype, "reserveSeat")
       .mockImplementation(() => {});
   });
 
@@ -242,6 +250,88 @@ describe("TicketService", () => {
       ticketService.purchaseTickets(validId, ...orderList);
 
       expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 25); // Only the adult ticket is charged
+    });
+  });
+
+  describe("Seat reservation service interactions", () => {
+    test("should not call reservation service when account ID is invalid", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+      ]);
+
+      expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
+        InvalidPurchaseException
+      );
+
+      expect(reservationServiceSpy).not.toHaveBeenCalled();
+    });
+
+    test("should not call reservation service when ticket request is invalid or missing", () => {
+      expect(() => ticketService.purchaseTickets(validId, null)).toThrow(
+        InvalidPurchaseException
+      );
+      expect(reservationServiceSpy).not.toHaveBeenCalled();
+    });
+
+    test("should reserve correct number of seats for single adult ticket", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 1 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+      expect(reservationServiceSpy).toHaveBeenCalledOnce();
+      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 1); // 1 adult = 1 seat
+    });
+
+    test("should reserve correct number of seats for multiple adult tickets", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 3 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 3); // 3 adults = 3 seats
+    });
+
+    test("should reserve correct number of seats for mixed ticket types", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+        { type: "CHILD", quantity: 3 },
+        { type: "INFANT", quantity: 1 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+
+      // 2 adults @ 1 seat = 2 seats
+      // 3 children @ 1 seat = 3 seats
+      // 1 infant @ 0 seats = 0 seats (infants sit on laps)
+      // Total: 5 seats
+      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 5);
+    });
+
+    test("should handle infant tickets correctly (no seats required)", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 2 },
+        { type: "INFANT", quantity: 2 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+
+      // 2 adults @ 1 seat = 2 seats
+      // 2 infants @ 0 seats = 0 seats
+      // Total: 2 seats
+      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 2);
+    });
+
+    test("should handle zero quantities correctly", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 1 },
+        { type: "CHILD", quantity: 0 },
+        { type: "INFANT", quantity: 0 },
+      ]);
+
+      ticketService.purchaseTickets(validId, ...orderList);
+
+      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 1); // Only the adult seat is reserved
     });
   });
 });

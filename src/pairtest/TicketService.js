@@ -2,6 +2,7 @@ import TicketTypeRequest from "./lib/TicketTypeRequest.js";
 import TicketRepository from "./repository/TicketRepository.js";
 import InvalidPurchaseException from "./lib/InvalidPurchaseException.js";
 import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService.js";
+import SeatReservationService from "../thirdparty/seatbooking/SeatReservationService.js";
 
 export default class TicketService {
   #ticketsLimit = 25;
@@ -29,6 +30,8 @@ export default class TicketService {
       this.#validateOrder();
       // Pay for tickets
       this.#payForTickets();
+      // Book seats
+      this.#bookSeats();
     } catch (error) {
       throw new InvalidPurchaseException(
         `Failed to purchase tickets: ${error.message || error}`
@@ -116,5 +119,18 @@ export default class TicketService {
       0
     );
     service.makePayment(this.#accountId, totalPayment);
+  }
+
+  #bookSeats() {
+    const service = new SeatReservationService();
+
+    const totalSeats = Object.values(this.#totals).reduce(
+      (total, ticketType) => {
+        return total + ticketType.totalSeats;
+      },
+      0
+    );
+
+    service.reserveSeat(this.#accountId, totalSeats);
   }
 }
