@@ -71,13 +71,13 @@ export default class TicketService {
 
       if (!totals[ticketType]) {
         totals[ticketType] = {
-          quantity: 0,
+          totalQuantity: 0,
           totalPrice: 0,
           totalSeats: 0,
         };
       }
 
-      totals[ticketType].quantity += noOfTickets;
+      totals[ticketType].totalQuantity += noOfTickets;
       totals[ticketType].totalPrice +=
         noOfTickets * this.#ticketsData[ticketType].price;
       totals[ticketType].totalSeats +=
@@ -90,19 +90,19 @@ export default class TicketService {
   #validateOrder() {
     const totals = this.#totals;
 
-    if (!totals["ADULT"]?.quantity) {
+    if (!totals["ADULT"]?.totalQuantity) {
       throw new Error("At least 1 adult ticket is required");
     }
 
-    if (totals["ADULT"].quantity < (totals["INFANT"]?.quantity || 0)) {
+    if (
+      totals["ADULT"].totalQuantity < (totals["INFANT"]?.totalQuantity || 0)
+    ) {
       throw new Error(
         "Number of infant tickets cannot exceed number of adult tickets"
       );
     }
 
-    const ticketsTotal = Object.values(totals).reduce((total, ticketType) => {
-      return total + ticketType.quantity;
-    }, 0);
+    const ticketsTotal = this.#getTotal("totalQuantity");
 
     if (ticketsTotal > this.#ticketsLimit) {
       throw new Error("Maximum tickets number per order exceeded ");
@@ -111,26 +111,19 @@ export default class TicketService {
 
   #payForTickets() {
     const service = new TicketPaymentService();
-
-    const totalPayment = Object.values(this.#totals).reduce(
-      (total, ticketType) => {
-        return total + ticketType.totalPrice;
-      },
-      0
-    );
+    const totalPayment = this.#getTotal("totalPrice");
     service.makePayment(this.#accountId, totalPayment);
   }
 
   #bookSeats() {
     const service = new SeatReservationService();
-
-    const totalSeats = Object.values(this.#totals).reduce(
-      (total, ticketType) => {
-        return total + ticketType.totalSeats;
-      },
-      0
-    );
-
+    const totalSeats = this.#getTotal("totalSeats");
     service.reserveSeat(this.#accountId, totalSeats);
+  }
+
+  #getTotal(keyName) {
+    return Object.values(this.#totals).reduce((total, ticketType) => {
+      return total + ticketType[keyName];
+    }, 0);
   }
 }
