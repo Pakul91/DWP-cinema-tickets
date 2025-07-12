@@ -8,6 +8,8 @@ export default class TicketService {
     ADULT: 25,
   };
 
+  #ticketsLimit = 25;
+
   purchaseTickets(accountId, ...ticketTypeRequests) {
     try {
       // Validate account ID
@@ -17,6 +19,7 @@ export default class TicketService {
       // Calculate totals
       const totals = this.#calculateTotals(ticketTypeRequests);
       // Validate order
+      this.#validateOrder(totals);
     } catch (error) {
       throw new InvalidPurchaseException(
         `Failed to purchase tickets: ${error.message}`
@@ -45,22 +48,36 @@ export default class TicketService {
   }
 
   #calculateTotals(ticketTypeRequests) {
-    return ticketTypeRequests.reduce((summary, request) => {
+    return ticketTypeRequests.reduce((totals, request) => {
       const ticketType = request.getTicketType();
       const noOfTickets = request.getNoOfTickets();
 
-      if (!summary[ticketType]) {
-        summary[ticketType] = {
+      if (!totals[ticketType]) {
+        totals[ticketType] = {
           quantity: 0,
           totalPrice: 0,
         };
       }
 
-      summary[ticketType].quantity += noOfTickets;
-      summary[ticketType].totalPrice +=
+      totals[ticketType].quantity += noOfTickets;
+      totals[ticketType].totalPrice +=
         noOfTickets * this.#ticketPrices[ticketType];
 
-      return summary;
+      return totals;
     }, {});
+  }
+
+  #validateOrder(totals) {
+    if (!totals["ADULT"]?.quantity) {
+      throw new Error("At least 1 adult ticket is required");
+    }
+
+    const ticketsTotal = Object.values(totals).reduce((total, ticketType) => {
+      return total + ticketType.quantity;
+    }, 0);
+
+    if (ticketsTotal > this.#ticketsLimit) {
+      throw new Error("Maximum tickets number per order exceeded ");
+    }
   }
 }
