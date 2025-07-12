@@ -88,6 +88,12 @@ export default class TicketService {
       throw new Error("At least 1 adult ticket is required");
     }
 
+    if (totals["ADULT"].quantity < (totals["INFANT"]?.quantity || 0)) {
+      throw new Error(
+        "Number of infant tickets cannot exceed number of adult tickets"
+      );
+    }
+
     const ticketsTotal = Object.values(totals).reduce((total, ticketType) => {
       return total + ticketType.quantity;
     }, 0);

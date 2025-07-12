@@ -142,6 +142,17 @@ describe("TicketService", () => {
       ).toThrow(InvalidPurchaseException);
     });
 
+    test("should throw error when there are more tickets for infants than there is for adults", () => {
+      const orderList = createTicketTypeRequest([
+        { type: "ADULT", quantity: 1 },
+        { type: "INFANT", quantity: 2 },
+      ]);
+
+      expect(() =>
+        ticketService.purchaseTickets(validId, ...orderList)
+      ).toThrow(InvalidPurchaseException);
+    });
+
     test("should throw error when there is to many tickets in order", () => {
       const orderList = createTicketTypeRequest([
         { type: "ADULT", quantity: 25 },
