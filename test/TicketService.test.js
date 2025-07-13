@@ -87,23 +87,29 @@ describe("TicketService", () => {
   });
 
   describe("Ticket requests validation", () => {
-    test("should throw error if no ticket requests are provided", () => {
-      expect(() => ticketService.purchaseTickets(validId)).toThrow(
+    const validRequest = new TicketTypeRequest("ADULT", 1);
+
+    test.each([
+      ["no ticket requests", []],
+      ["empty array ", [[]]],
+      ["array of valid requests", [[validRequest]]],
+      ["null as a ticket request", [validRequest, null]],
+      ["non-TicketTypeRequest object", [{ type: "ADULT", quantity: 1 }]],
+      ["string primitive", ["ADULT"]],
+      ["number primitive", [3]],
+    ])("should throw error when %s provided", (_, args) => {
+      expect(() => ticketService.purchaseTickets(validId, ...args)).toThrow(
         InvalidPurchaseException
       );
     });
 
-    test("should throw error wrong ticket request is provided", () => {
-      const validRequest = new TicketTypeRequest("ADULT", 1);
-      expect(() => ticketService.purchaseTickets(validId, [])).toThrow(
-        InvalidPurchaseException
-      );
+    test("should accept multiple valid ticket requests", () => {
+      const adultTicket = new TicketTypeRequest("ADULT", 2);
+      const childTicket = new TicketTypeRequest("CHILD", 1);
+
       expect(() =>
-        ticketService.purchaseTickets(validId, [validRequest])
-      ).toThrow(InvalidPurchaseException);
-      expect(() =>
-        ticketService.purchaseTickets(1, validRequest, null)
-      ).toThrow(InvalidPurchaseException);
+        ticketService.purchaseTickets(validId, adultTicket, childTicket)
+      ).not.toThrow();
     });
   });
 
@@ -112,11 +118,9 @@ describe("TicketService", () => {
       const orderList = createTicketTypeRequest([
         { type: "ADULT", quantity: 2 },
       ]);
-
       expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
         InvalidPurchaseException
       );
-
       expect(ticketRepositorySpy).not.toHaveBeenCalled();
     });
 
