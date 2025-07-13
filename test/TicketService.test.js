@@ -18,10 +18,23 @@ const createTicketTypeRequest = (ticketTypes) => {
   if (!Array.isArray(ticketTypes)) {
     throw new Error("You need to pass an array");
   }
-
   return ticketTypes.map(
     (ticketType) => new TicketTypeRequest(ticketType.type, ticketType.quantity)
   );
+};
+
+const calculateOrderPrice = (order) => {
+  return order.reduce((total, item) => {
+    const { type, quantity } = item;
+    return total + ticketPrices[type].price * quantity;
+  }, 0);
+};
+
+const calculateTotalSeats = (order) => {
+  return order.reduce((total, item) => {
+    const { type, quantity } = item;
+    return total + ticketPrices[type].seats * quantity;
+  }, 0);
 };
 
 describe("TicketService", () => {
@@ -49,7 +62,7 @@ describe("TicketService", () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe("Account ID validation", () => {
@@ -143,47 +156,67 @@ describe("TicketService", () => {
   });
 
   describe("Order validation", () => {
-    test("should throw error when there is no adults ticket in the order", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 0 },
-        { type: "CHILD", quantity: 1 },
-        { type: "INFANT", quantity: 1 },
-      ]);
+    const noAdultOrder = [
+      { type: "ADULT", quantity: 0 },
+      { type: "CHILD", quantity: 1 },
+      { type: "INFANT", quantity: 1 },
+    ];
+    const tooManyInfantsOrder = [
+      { type: "ADULT", quantity: 1 },
+      { type: "INFANT", quantity: 2 },
+    ];
+    const tooLargeOrder = [
+      { type: "ADULT", quantity: 25 },
+      { type: "CHILD", quantity: 1 },
+    ];
+    const validMixedOrder = [
+      { type: "ADULT", quantity: 2 },
+      { type: "CHILD", quantity: 1 },
+      { type: "INFANT", quantity: 1 },
+    ];
+    const edgeSizeOrder = [{ type: "ADULT", quantity: 25 }];
+    const equalInfantsOrder = [
+      { type: "ADULT", quantity: 2 },
+      { type: "INFANT", quantity: 2 },
+    ];
 
+    test("should throw error when there is no adults ticket in the order", () => {
+      const orderList = createTicketTypeRequest(noAdultOrder);
       expect(() =>
         ticketService.purchaseTickets(validId, ...orderList)
       ).toThrow(InvalidPurchaseException);
     });
 
     test("should throw error when there are more tickets for infants than there is for adults", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 1 },
-        { type: "INFANT", quantity: 2 },
-      ]);
-
+      const orderList = createTicketTypeRequest(tooManyInfantsOrder);
       expect(() =>
         ticketService.purchaseTickets(validId, ...orderList)
       ).toThrow(InvalidPurchaseException);
     });
 
     test("should throw error when there are too many tickets in order", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 25 },
-        { type: "CHILD", quantity: 1 },
-      ]);
-
+      const orderList = createTicketTypeRequest(tooLargeOrder);
       expect(() =>
         ticketService.purchaseTickets(validId, ...orderList)
       ).toThrow(InvalidPurchaseException);
     });
 
     test("should not throw with valid order", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-        { type: "CHILD", quantity: 1 },
-        { type: "INFANT", quantity: 1 },
-      ]);
+      const orderList = createTicketTypeRequest(validMixedOrder);
+      expect(() =>
+        ticketService.purchaseTickets(validId, ...orderList)
+      ).not.toThrow(InvalidPurchaseException);
+    });
 
+    test("should not throw with order on the limit", () => {
+      const orderList = createTicketTypeRequest(edgeSizeOrder);
+      expect(() =>
+        ticketService.purchaseTickets(validId, ...orderList)
+      ).not.toThrow(InvalidPurchaseException);
+    });
+
+    test("should not throw with order with equal infants to adults", () => {
+      const orderList = createTicketTypeRequest(equalInfantsOrder);
       expect(() =>
         ticketService.purchaseTickets(validId, ...orderList)
       ).not.toThrow(InvalidPurchaseException);
@@ -191,15 +224,24 @@ describe("TicketService", () => {
   });
 
   describe("Payment service interactions", () => {
-    test("should not call payment service when account ID is invalid", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-      ]);
+    const singleAdultOrder = [{ type: "ADULT", quantity: 1 }];
+    const multipleAdultsOrder = [{ type: "ADULT", quantity: 3 }];
+    const mixedOrder = [
+      { type: "ADULT", quantity: 2 },
+      { type: "CHILD", quantity: 3 },
+      { type: "INFANT", quantity: 1 },
+    ];
+    const zeroQuantitiesMixedOrder = [
+      { type: "ADULT", quantity: 1 },
+      { type: "CHILD", quantity: 0 },
+      { type: "INFANT", quantity: 0 },
+    ];
 
+    test("should not call payment service when account ID is invalid", () => {
+      const orderList = createTicketTypeRequest(singleAdultOrder);
       expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
         InvalidPurchaseException
       );
-
       expect(paymentServiceSpy).not.toHaveBeenCalled();
     });
 
@@ -211,58 +253,55 @@ describe("TicketService", () => {
     });
 
     test("should calculate correct payment for single adult ticket", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 1 },
-      ]);
-
+      const orderList = createTicketTypeRequest(singleAdultOrder);
+      const expectedPrice = calculateOrderPrice(singleAdultOrder);
       ticketService.purchaseTickets(validId, ...orderList);
       expect(paymentServiceSpy).toHaveBeenCalledOnce();
-      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 25);
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, expectedPrice);
     });
 
     test("should calculate correct payment for multiple adult tickets", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 3 },
-      ]);
-
+      const orderList = createTicketTypeRequest(multipleAdultsOrder);
+      const expectedPrice = calculateOrderPrice(multipleAdultsOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 75); // 3 * 25 = 75
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, expectedPrice);
     });
 
     test("should calculate correct payment for mixed ticket types", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-        { type: "CHILD", quantity: 3 },
-        { type: "INFANT", quantity: 1 },
-      ]);
-
+      const orderList = createTicketTypeRequest(mixedOrder);
+      const expectedPrice = calculateOrderPrice(mixedOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-
-      // 2 adults @ £25 = £50
-      // 3 children @ £15 = £45
-      // 1 infant @ £0 = £0
-      // Total: £95
-      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 95);
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, expectedPrice);
     });
 
     test("should handle zero quantities correctly", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 1 },
-        { type: "CHILD", quantity: 0 },
-        { type: "INFANT", quantity: 0 },
-      ]);
-
+      const orderList = createTicketTypeRequest(zeroQuantitiesMixedOrder);
+      const expectedPrice = calculateOrderPrice(zeroQuantitiesMixedOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-
-      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, 25); // Only the adult ticket is charged
+      expect(paymentServiceSpy).toHaveBeenCalledWith(validId, expectedPrice);
     });
   });
 
   describe("Seat reservation service interactions", () => {
+    const singleAdultOrder = [{ type: "ADULT", quantity: 1 }];
+    const multipleAdultsOrder = [{ type: "ADULT", quantity: 3 }];
+    const mixedOrder = [
+      { type: "ADULT", quantity: 2 },
+      { type: "CHILD", quantity: 3 },
+      { type: "INFANT", quantity: 1 },
+    ];
+    const infantsWithAdultsOrder = [
+      { type: "ADULT", quantity: 2 },
+      { type: "INFANT", quantity: 2 },
+    ];
+    const zeroQuantitiesOrder = [
+      { type: "ADULT", quantity: 1 },
+      { type: "CHILD", quantity: 0 },
+      { type: "INFANT", quantity: 0 },
+    ];
+
     test("should not call reservation service when account ID is invalid", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-      ]);
+      const orderList = createTicketTypeRequest(singleAdultOrder);
 
       expect(() => ticketService.purchaseTickets(0, ...orderList)).toThrow(
         InvalidPurchaseException
@@ -279,64 +318,54 @@ describe("TicketService", () => {
     });
 
     test("should reserve correct number of seats for single adult ticket", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 1 },
-      ]);
-
+      const orderList = createTicketTypeRequest(singleAdultOrder);
+      const expectedSeats = calculateTotalSeats(singleAdultOrder);
       ticketService.purchaseTickets(validId, ...orderList);
       expect(reservationServiceSpy).toHaveBeenCalledOnce();
-      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 1); // 1 adult = 1 seat
+      expect(reservationServiceSpy).toHaveBeenCalledWith(
+        validId,
+        expectedSeats
+      );
     });
 
     test("should reserve correct number of seats for multiple adult tickets", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 3 },
-      ]);
-
+      const orderList = createTicketTypeRequest(multipleAdultsOrder);
+      const expectedSeats = calculateTotalSeats(multipleAdultsOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 3); // 3 adults = 3 seats
+      expect(reservationServiceSpy).toHaveBeenCalledWith(
+        validId,
+        expectedSeats
+      );
     });
 
     test("should reserve correct number of seats for mixed ticket types", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-        { type: "CHILD", quantity: 3 },
-        { type: "INFANT", quantity: 1 },
-      ]);
-
+      const orderList = createTicketTypeRequest(mixedOrder);
+      const expectedSeats = calculateTotalSeats(mixedOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-
-      // 2 adults @ 1 seat = 2 seats
-      // 3 children @ 1 seat = 3 seats
-      // 1 infant @ 0 seats = 0 seats (infants sit on laps)
-      // Total: 5 seats
-      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 5);
+      expect(reservationServiceSpy).toHaveBeenCalledWith(
+        validId,
+        expectedSeats
+      );
     });
 
     test("should handle infant tickets correctly (no seats required)", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 2 },
-        { type: "INFANT", quantity: 2 },
-      ]);
-
+      const orderList = createTicketTypeRequest(infantsWithAdultsOrder);
+      const expectedSeats = calculateTotalSeats(infantsWithAdultsOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-
-      // 2 adults @ 1 seat = 2 seats
-      // 2 infants @ 0 seats = 0 seats
-      // Total: 2 seats
-      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 2);
+      expect(reservationServiceSpy).toHaveBeenCalledWith(
+        validId,
+        expectedSeats
+      );
     });
 
     test("should handle zero quantities correctly", () => {
-      const orderList = createTicketTypeRequest([
-        { type: "ADULT", quantity: 1 },
-        { type: "CHILD", quantity: 0 },
-        { type: "INFANT", quantity: 0 },
-      ]);
-
+      const orderList = createTicketTypeRequest(zeroQuantitiesOrder);
+      const expectedSeats = calculateTotalSeats(zeroQuantitiesOrder);
       ticketService.purchaseTickets(validId, ...orderList);
-
-      expect(reservationServiceSpy).toHaveBeenCalledWith(validId, 1); // Only the adult seat is reserved
+      expect(reservationServiceSpy).toHaveBeenCalledWith(
+        validId,
+        expectedSeats
+      );
     });
   });
 });
