@@ -79,7 +79,7 @@ describe("TicketService", () => {
       }
     );
 
-    test("Should accept valid account ID", () => {
+    test("should accept valid account ID", () => {
       expect(() =>
         ticketService.purchaseTickets(validId, validTicketRequest)
       ).not.toThrow();
@@ -91,13 +91,14 @@ describe("TicketService", () => {
 
     test.each([
       ["no ticket requests", []],
-      ["empty array ", [[]]],
+      ["empty array", [[]]],
       ["array of valid requests", [[validRequest]]],
       ["null as a ticket request", [validRequest, null]],
+      ["undefined as a ticket request", [validRequest, undefined]],
       ["non-TicketTypeRequest object", [{ type: "ADULT", quantity: 1 }]],
       ["string primitive", ["ADULT"]],
       ["number primitive", [3]],
-    ])("should throw error when %s provided", (_, args) => {
+    ])("should throw error when %s is provided", (_, args) => {
       expect(() => ticketService.purchaseTickets(validId, ...args)).toThrow(
         InvalidPurchaseException
       );
@@ -165,7 +166,7 @@ describe("TicketService", () => {
       ).toThrow(InvalidPurchaseException);
     });
 
-    test("should throw error when there is to many tickets in order", () => {
+    test("should throw error when there are too many tickets in order", () => {
       const orderList = createTicketTypeRequest([
         { type: "ADULT", quantity: 25 },
         { type: "CHILD", quantity: 1 },
@@ -190,7 +191,7 @@ describe("TicketService", () => {
   });
 
   describe("Payment service interactions", () => {
-    test("should not call repository when account ID is invalid", () => {
+    test("should not call payment service when account ID is invalid", () => {
       const orderList = createTicketTypeRequest([
         { type: "ADULT", quantity: 2 },
       ]);
@@ -202,7 +203,7 @@ describe("TicketService", () => {
       expect(paymentServiceSpy).not.toHaveBeenCalled();
     });
 
-    test("should not call repository when ticket request is invalid or missing", () => {
+    test("should not call payment service when ticket request is invalid or missing", () => {
       expect(() => ticketService.purchaseTickets(validId, null)).toThrow(
         InvalidPurchaseException
       );
